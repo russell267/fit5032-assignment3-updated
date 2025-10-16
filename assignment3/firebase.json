@@ -26,11 +26,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      { "source": "/api/**", "function": "api" },
-      { "source": "/countBooks", "function": "countBooks" },
-      { "source": "/sendEmail", "function": "sendEmail" },
-      { "source": "/seedBooks", "function": "seedBooks" },
-      { "source": "/seedUsers", "function": "seedUsers" },
+      { "source": "/countBooks", "function": "countBooks", "functionRegion": "us-central1" },
+      { "source": "/sendEmail",  "function": "sendEmail",  "functionRegion": "us-central1" },
+      { "source": "/seedBooks",  "function": "seedBooks",  "functionRegion": "us-central1" },
+      { "source": "/seedUsers",  "function": "seedUsers",  "functionRegion": "us-central1" },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [
@@ -45,7 +44,27 @@
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
         ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" }
+        ]
       }
     ]
+  },
+  "emulators": {
+    "functions": { "host": "127.0.0.1", "port": 5002 },
+    "firestore": { "port": 8080 },
+    "hosting":   { "port": 5000 },
+    "ui":        { "enabled": true, "port": 4001 }
   }
 }
