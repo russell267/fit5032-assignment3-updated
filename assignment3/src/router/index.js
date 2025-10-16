@@ -10,7 +10,7 @@ import GetBookCountView from '@/views/GetBookCountView.vue'
 import WeatherView from '../views/WeatherView.vue'
 import CountBookAPI from '../views/CountBookAPI.vue'
 import SendEmailView from '@/views/SendEmailView.vue';
-
+import InteractiveTables from '../views/InteractiveTables.vue'
 
 const routes = [
   {
@@ -62,6 +62,10 @@ const routes = [
     path: '/WeatherCheck',
     name: 'WeatherCheck',
     component: WeatherView,
+  },
+  { path: '/interactive',
+    name: 'Interactive',
+    component: InteractiveTables
   },
   {
     path: '/CountBookAPI',

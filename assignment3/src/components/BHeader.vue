@@ -46,6 +46,11 @@
           >
         </li>
         <li class="nav-item">
+          <router-link to="/interactive" class="nav-link" active-class="active"
+            >Interactive Table</router-link
+          >
+        </li>
+        <li class="nav-item">
           <router-link to="/CountBookAPI" class="nav-link" active-class="active"
             >Count Book API</router-link
           >

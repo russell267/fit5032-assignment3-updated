@@ -33,6 +33,61 @@ function splitEmails(to) {
 }
 
 
+function applyQuery(data, query) {
+  let result = [...data];
+  const { q = '', sortBy = '', sortDir = 'asc', page = '1', pageSize = '10' } = query;
+
+
+  const filters = Object.fromEntries(
+    Object.entries(query)
+      .filter(([k]) => k.startsWith('filters['))
+      .map(([k, v]) => [k.slice(8, -1), v])
+  );
+
+
+  if (q) {
+    const kw = q.toLowerCase();
+    result = result.filter(row =>
+      Object.values(row).some(val => String(val ?? '').toLowerCase().includes(kw))
+    );
+  }
+
+
+  for (const [field, value] of Object.entries(filters)) {
+    if (value) {
+      const kw = String(value).toLowerCase();
+      result = result.filter(row => String(row[field] ?? '').toLowerCase().includes(kw));
+    }
+  }
+
+
+  if (sortBy) {
+    result.sort((a, b) => {
+      const va = a[sortBy], vb = b[sortBy];
+      if (va == null && vb == null) return 0;
+      if (va == null) return sortDir === 'asc' ? -1 : 1;
+      if (vb == null) return sortDir === 'asc' ? 1 : -1;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return sortDir === 'asc' ? va - vb : vb - va;
+      }
+      return sortDir === 'asc'
+        ? String(va).localeCompare(String(vb))
+        : String(vb).localeCompare(String(va));
+    });
+  }
+
+
+  const p = Math.max(1, parseInt(page, 10));
+  const ps = Math.max(1, parseInt(pageSize, 10));
+  const total = result.length;
+  const start = (p - 1) * ps;
+  const items = result.slice(start, start + ps);
+
+  return { items, total, page: p, pageSize: ps };
+}
+
+
+
 exports.countBooks = onRequest(async (req, res) => {
   return cors(req, res, async () => {
     try {
@@ -111,5 +166,155 @@ exports.sendEmail = onRequest(
         return res.status(500).json({ ok: false, error: reason });
       }
     });
+
+
   }
 );
+
+
+exports.api = onRequest({ region: 'us-central1' }, async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method === 'OPTIONS') return res.status(204).send('');
+
+
+      const fullPath = (req.path || req.originalUrl || '').toLowerCase();
+      const match = fullPath.match(/\b(books|users)\b/);
+      if (!match) {
+        return res.status(404).json({ error: 'Unknown resource. Use /api/books or /api/users' });
+      }
+      const colName = match[1];
+
+
+      const snap = await admin.firestore().collection(colName).get();
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+
+      const result = applyQuery(rows, req.query);
+      return res.status(200).json(result);
+    } catch (e) {
+      console.error('API error:', e);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+});
+
+
+
+
+exports.seedBooks = onRequest({ region: 'us-central1' }, async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method === 'OPTIONS') return res.status(204).send('');
+
+      const db = admin.firestore();
+      const colRef = db.collection('books');
+
+
+      const books = [
+        { id: 'bk-clean-code', title: 'Clean Code', author: 'Robert C. Martin', year: 2008, pages: 464 },
+        { id: 'bk-refactoring', title: 'Refactoring', author: 'Martin Fowler', year: 1999, pages: 448 },
+        { id: 'bk-ddd', title: 'Domain-Driven Design', author: 'Eric Evans', year: 2003, pages: 560 },
+        { id: 'bk-gof', title: 'Design Patterns', author: 'GoF', year: 1994, pages: 395 },
+        { id: 'bk-ydkjs', title: "You Don't Know JS", author: 'Kyle Simpson', year: 2015, pages: 278 },
+        { id: 'bk-pragmatic', title: 'The Pragmatic Programmer', author: 'Andrew Hunt', year: 1999, pages: 352 },
+        { id: 'bk-ej', title: 'Effective Java', author: 'Joshua Bloch', year: 2008, pages: 416 },
+        { id: 'bk-algo', title: 'Introduction to Algorithms', author: 'CLRS', year: 2009, pages: 1312 },
+        { id: 'bk-cs', title: 'Cracking the Coding Interview', author: 'Gayle Laakmann', year: 2015, pages: 706 },
+        { id: 'bk-poeaa', title: 'Patterns of Enterprise Application Architecture', author: 'Martin Fowler', year: 2002, pages: 533 }
+      ];
+
+      const batch = db.batch();
+      books.forEach(b => {
+        const ref = colRef.doc(b.id);
+        batch.set(ref, { title: b.title, author: b.author, year: b.year, pages: b.pages }, { merge: true });
+      });
+      await batch.commit();
+
+      return res.status(200).json({ ok: true, inserted: books.length });
+    } catch (e) {
+      console.error('seedBooks error:', e);
+      return res.status(500).json({ ok: false, error: 'seedBooks failed' });
+    }
+  });
+});
+
+exports.seedUsers = onRequest({ region: 'us-central1' }, async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method === 'OPTIONS') return res.status(204).send('');
+
+      const db = admin.firestore();
+      const colRef = db.collection('users');
+
+      const users = [
+        { id: 'u-alice', name: 'Alice', email: 'alice@example.com', role: 'admin' },
+        { id: 'u-bob', name: 'Bob', email: 'bob@example.com', role: 'editor' },
+        { id: 'u-charlie', name: 'Charlie', email: 'charlie@example.com', role: 'viewer' },
+        { id: 'u-daisy', name: 'Daisy', email: 'daisy@example.com', role: 'viewer' },
+        { id: 'u-ethan', name: 'Ethan', email: 'ethan@example.com', role: 'editor' },
+        { id: 'u-fiona', name: 'Fiona', email: 'fiona@example.com', role: 'viewer' },
+        { id: 'u-george', name: 'George', email: 'george@example.com', role: 'admin' },
+        { id: 'u-helen', name: 'Helen', email: 'helen@example.com', role: 'viewer' },
+        { id: 'u-ivan', name: 'Ivan', email: 'ivan@example.com', role: 'editor' },
+        { id: 'u-judy', name: 'Judy', email: 'judy@example.com', role: 'viewer' }
+      ];
+
+      const batch = db.batch();
+      users.forEach(u => {
+        const ref = colRef.doc(u.id);
+        batch.set(ref, { name: u.name, email: u.email, role: u.role }, { merge: true });
+      });
+      await batch.commit();
+
+      return res.status(200).json({ ok: true, inserted: users.length });
+    } catch (e) {
+      console.error('seedUsers error:', e);
+      return res.status(500).json({ ok: false, error: 'seedUsers failed' });
+    }
+  });
+});
+
+exports.seedAll = onRequest({ region: 'us-central1' }, async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method === 'OPTIONS') return res.status(204).send('');
+
+
+      const db = admin.firestore();
+
+
+      const books = [
+        { id: 'bk-clean-code', title: 'Clean Code', author: 'Robert C. Martin', year: 2008, pages: 464 },
+        { id: 'bk-refactoring', title: 'Refactoring', author: 'Martin Fowler', year: 1999, pages: 448 },
+        { id: 'bk-ddd', title: 'Domain-Driven Design', author: 'Eric Evans', year: 2003, pages: 560 },
+        { id: 'bk-gof', title: 'Design Patterns', author: 'GoF', year: 1994, pages: 395 },
+        { id: 'bk-ydkjs', title: "You Don't Know JS", author: 'Kyle Simpson', year: 2015, pages: 278 },
+      ];
+      const batch1 = db.batch();
+      const booksRef = db.collection('books');
+      books.forEach(b => batch1.set(booksRef.doc(b.id), { title: b.title, author: b.author, year: b.year, pages: b.pages }, { merge: true }));
+      await batch1.commit();
+
+
+      const users = [
+        { id: 'u-alice', name: 'Alice', email: 'alice@example.com', role: 'admin' },
+        { id: 'u-bob', name: 'Bob', email: 'bob@example.com', role: 'editor' },
+        { id: 'u-charlie', name: 'Charlie', email: 'charlie@example.com', role: 'viewer' },
+        { id: 'u-daisy', name: 'Daisy', email: 'daisy@example.com', role: 'viewer' },
+        { id: 'u-ethan', name: 'Ethan', email: 'ethan@example.com', role: 'editor' },
+      ];
+      const batch2 = db.batch();
+      const usersRef = db.collection('users');
+      users.forEach(u => batch2.set(usersRef.doc(u.id), { name: u.name, email: u.email, role: u.role }, { merge: true }));
+      await batch2.commit();
+
+      return res.status(200).json({ ok: true, message: 'Seeded books & users' });
+    } catch (e) {
+      console.error('seedAll error:', e);
+      return res.status(500).json({ ok: false, error: 'seedAll failed' });
+    }
+  });
+});
+
+
