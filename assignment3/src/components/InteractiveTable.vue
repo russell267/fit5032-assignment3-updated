@@ -11,7 +11,19 @@
       />
       <button @click="onSearchNow" class="border px-3 py-1 rounded">Search</button>
       <button @click="onReset" class="border px-3 py-1 rounded">Reset</button>
-      <slot name="extra"></slot>
+
+
+      <slot
+        name="extra"
+        :rows="rows"
+        :filteredRows="rows"
+        :q="q"
+        :filters="filters"
+        :query="query"
+        :page="page"
+        :pageSize="pageSize"
+        :fetchAll="fetchAllMatched"
+      ></slot>
     </div>
 
     <!-- insert column -->
@@ -70,7 +82,6 @@
         </tr>
       </tbody>
     </table>
-
 
     <div v-if="hasSearch && rows.length" class="flex items-center justify-between">
       <div>Page {{ page }} / {{ totalPages }}</div>
@@ -141,7 +152,6 @@ const hasSearch = computed(() => {
   return Object.values(filters).some((v) => (v || '').trim().length > 0)
 })
 
-
 function buildParams() {
   const params: Record<string, any> = {
     page: page.value,
@@ -167,7 +177,6 @@ function buildParams() {
   return params
 }
 
-
 let timer: ReturnType<typeof setTimeout> | null = null
 function scheduleSearch() {
   if (timer) clearTimeout(timer)
@@ -183,7 +192,6 @@ function onSearchNow() {
   fetchData()
 }
 
-
 function onSort(key: string) {
   if (query.sortBy === key) {
     query.sortDir = query.sortDir === 'asc' ? 'desc' : 'asc'
@@ -198,12 +206,10 @@ function sortableTitle(key: string) {
   return query.sortBy === key ? `Sort: ${query.sortDir}` : 'Click to sort'
 }
 
-
 function go(p: number) {
   page.value = Math.min(Math.max(1, p), totalPages.value)
   fetchData()
 }
-
 
 function onReset() {
   q.value = ''
@@ -214,7 +220,6 @@ function onReset() {
   total.value = 0
   page.value = 1
 }
-
 
 async function fetchData() {
   if (!hasSearch.value) {
@@ -236,6 +241,25 @@ async function fetchData() {
   } finally {
     loading.value = false
   }
+}
+
+
+async function fetchAllMatched(): Promise<any[]> {
+  const baseParams = buildParams()
+
+  const size = pageSize.value || 10
+  let p = 1
+  let all: any[] = []
+
+  for (let i = 0; i < 500; i++) {
+    const params = { ...baseParams, page: p, pageSize: size }
+    const { data } = await api.get(props.endpoint, { params })
+    const chunk: any[] = Array.isArray(data) ? data : (data?.items ?? [])
+    all = all.concat(chunk)
+    if (!chunk.length || chunk.length < size) break
+    p++
+  }
+  return all
 }
 
 console.log('[InteractiveTable] apiBase:', debugApiBase())

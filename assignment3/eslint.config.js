@@ -1,26 +1,66 @@
-import { defineConfig, globalIgnores } from 'eslint/config'
-import globals from 'globals'
-import js from '@eslint/js'
-import pluginVue from 'eslint-plugin-vue'
-import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+import js from "@eslint/js";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import vuePlugin from "eslint-plugin-vue";
+import vueA11y from "eslint-plugin-vuejs-accessibility";
+import vueParser from "vue-eslint-parser";
 
-export default defineConfig([
+export default [
+
   {
-    name: 'app/files-to-lint',
-    files: ['**/*.{js,mjs,jsx,vue}'],
+    ignores: ["dist/**", "node_modules/**"],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
 
   {
+    files: ["**/*.ts", "**/*.js"],
     languageOptions: {
-      globals: {
-        ...globals.browser,
+      parser: tsParser,
+      ecmaVersion: 2020,
+      sourceType: "module",
+      parserOptions: {
+        project: false,
+        ecmaFeatures: { jsx: false },
       },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...tsPlugin.configs.recommended.rules,
     },
   },
 
-  js.configs.recommended,
-  ...pluginVue.configs['flat/essential'],
-  skipFormatting,
-])
+
+  {
+    files: ["**/*.vue"],
+    languageOptions: {
+
+      parser: vueParser,
+      ecmaVersion: 2020,
+      sourceType: "module",
+      parserOptions: {
+        parser: tsParser,
+        project: false,
+        extraFileExtensions: [".vue"],
+      },
+    },
+    plugins: {
+      vue: vuePlugin,
+      "@typescript-eslint": tsPlugin,
+      "vuejs-accessibility": vueA11y,
+    },
+    rules: {
+
+      ...vuePlugin.configs["vue3-recommended"].rules,
+
+      ...vueA11y.configs.recommended.rules,
+
+
+      "vue/multi-word-component-names": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+    },
+  },
+];
