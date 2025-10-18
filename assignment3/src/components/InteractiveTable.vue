@@ -1,164 +1,242 @@
 <template>
-  <div class="table-card">
-
-    <div class="toolbar">
+  <div class="space-y-3">
+    <!-- top select bar -->
+    <div class="flex items-center gap-2">
       <input
         v-model="q"
-        class="input"
+        @keyup.enter="onSearchNow"
+        @input="scheduleSearch"
+        class="border rounded px-2 py-1"
         placeholder="Global search..."
-        @input="fetchData(1)"
       />
+      <button @click="onSearchNow" class="border px-3 py-1 rounded">Search</button>
+      <button @click="onReset" class="border px-3 py-1 rounded">Reset</button>
       <slot name="extra"></slot>
     </div>
 
-
-    <div class="filters">
-      <div
-        v-for="c in searchableColumns"
-        :key="c.key"
-        class="filter-item"
-      >
-        <label>{{ c.label }}</label>
+    <!-- insert column -->
+    <div class="grid gap-2" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+      <template v-for="c in columns" :key="c.key">
         <input
+          v-if="c.searchable !== false"
           v-model="filters[c.key]"
-          class="input"
+          @keyup.enter="onSearchNow"
+          @input="scheduleSearch"
+          class="border rounded px-2 py-1"
           :placeholder="`Search ${c.label}`"
-          @input="fetchData(1)"
         />
-      </div>
+      </template>
     </div>
 
-
-    <table class="table">
+    <!-- column -->
+    <table class="w-full border-collapse">
       <thead>
         <tr>
           <th
-            v-for="c in columnsSafe"
+            v-for="c in columns"
             :key="c.key"
-            class="th"
-            @click="onSort(c)"
+            class="border-b text-left py-2 cursor-pointer select-none"
+            @click="onSort(c.key)"
+            :title="sortableTitle(c.key)"
           >
-            <span>{{ c.label }}</span>
-            <span class="sort" v-if="sortBy === c.key">
-              {{ sortDir === 'asc' ? '▲' : '▼' }}
-            </span>
+            {{ c.label }}
+            <span v-if="query.sortBy === c.key">({{ query.sortDir }})</span>
           </th>
         </tr>
       </thead>
-
       <tbody>
-        <tr v-for="row in items" :key="row[idKey]">
-          <td v-for="c in columnsSafe" :key="c.key">
-            {{ row[c.key] }}
+        <tr v-if="!hasSearch && !loading">
+          <td :colspan="columns.length" class="text-center text-gray-500 py-6">
+            Please enter search terms above
           </td>
         </tr>
 
-        <tr v-if="items.length === 0">
-          <td :colspan="columnsSafe.length" class="empty">No data</td>
+        <tr v-if="loading">
+          <td :colspan="columns.length" class="text-center text-gray-500 py-6">
+            Searching...
+          </td>
+        </tr>
+
+        <tr v-if="hasSearch && !loading && rows.length === 0">
+          <td :colspan="columns.length" class="text-center text-gray-500 py-6">
+            No results
+          </td>
+        </tr>
+
+        <tr v-for="row in rows" :key="row.id">
+          <td v-for="c in columns" :key="c.key" class="border-b py-2">
+            {{ row[c.key] }}
+          </td>
         </tr>
       </tbody>
     </table>
 
 
-    <div class="pager">
-      <button :disabled="page===1" @click="fetchData(page-1)">Prev</button>
-      <span>Page {{ page }} / {{ totalPages }}</span>
-      <button :disabled="page===totalPages" @click="fetchData(page+1)">Next</button>
+    <div v-if="hasSearch && rows.length" class="flex items-center justify-between">
+      <div>Page {{ page }} / {{ totalPages }}</div>
+      <div class="flex gap-2">
+        <button
+          :disabled="page <= 1"
+          @click="go(page - 1)"
+          class="border px-2 py-1 rounded disabled:opacity-50"
+        >
+          Prev
+        </button>
+        <button
+          :disabled="page >= totalPages"
+          @click="go(page + 1)"
+          class="border px-2 py-1 rounded disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+<script setup lang="ts">
+import { reactive, ref, computed, watch } from 'vue'
+import { api, debugApiBase } from '@/api'
 
-const props = defineProps({
-  endpoint: { type: String, required: true },
-  columns:  { type: Array,  required: true },
-  idKey:    { type: String, default: 'id' },
-  pageSize: { type: Number, default: 10 }
+interface Column {
+  key: string
+  label: string
+  searchable?: boolean
+}
+
+const props = defineProps<{
+  endpoint: string
+  columns: Column[]
+  pageSize?: number
+}>()
+
+const q = ref('')
+const filters = reactive<Record<string, string>>({})
+const query = reactive({
+  sortBy: '',
+  sortDir: 'asc' as 'asc' | 'desc',
 })
 
-const items   = ref([])
-const total   = ref(0)
-const page    = ref(1)
-const q       = ref('')
-const sortBy  = ref('')
-const sortDir = ref('asc')
-const filters = ref({})
+const page = ref(1)
+const pageSize = computed(() => props.pageSize ?? 10)
+const rows = ref<any[]>([])
+const total = ref(0)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+const loading = ref(false)
 
-
-const columnsSafe = computed(() =>
-  Array.isArray(props.columns) ? props.columns : []
+watch(
+  () => props.columns,
+  (cols) => {
+    cols.forEach((c) => {
+      if (c.searchable !== false && filters[c.key] === undefined) {
+        filters[c.key] = ''
+      }
+    })
+  },
+  { immediate: true }
 )
 
+const hasSearch = computed(() => {
+  if ((q.value || '').trim()) return true
+  return Object.values(filters).some((v) => (v || '').trim().length > 0)
+})
 
-const searchableColumns = computed(() =>
-  columnsSafe.value.filter(c => c && c.searchable !== false)
-)
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(total.value / props.pageSize))
-)
+function buildParams() {
+  const params: Record<string, any> = {
+    page: page.value,
+    pageSize: pageSize.value,
+  }
 
-function onSort(c) {
-  if (sortBy.value !== c.key) {
-    sortBy.value = c.key
-    sortDir.value = 'asc'
+  if (hasSearch.value) params.requireSearch = '1'
+  if (q.value.trim()) params.q = q.value.trim()
+
+  const flt: Record<string, string> = {}
+  for (const c of props.columns) {
+    if (c.searchable === false) continue
+    const v = (filters as any)[c.key]
+    if ((v || '').trim()) flt[c.key] = String(v).trim()
+  }
+  if (Object.keys(flt).length) params.filters = flt
+
+  if (query.sortBy) {
+    params.sortBy = query.sortBy
+    params.sortDir = query.sortDir
+  }
+
+  return params
+}
+
+
+let timer: ReturnType<typeof setTimeout> | null = null
+function scheduleSearch() {
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(() => {
+    page.value = 1
+    fetchData()
+  }, 300)
+}
+
+function onSearchNow() {
+  if (timer) clearTimeout(timer)
+  page.value = 1
+  fetchData()
+}
+
+
+function onSort(key: string) {
+  if (query.sortBy === key) {
+    query.sortDir = query.sortDir === 'asc' ? 'desc' : 'asc'
   } else {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+    query.sortBy = key
+    query.sortDir = 'asc'
   }
-  fetchData(1)
+  fetchData()
 }
 
-async function fetchData(toPage = page.value) {
-  page.value = toPage
-
-  const params = new URLSearchParams({
-    page:     String(page.value),
-    pageSize: String(props.pageSize),
-    q:        q.value,
-    sortBy:   sortBy.value,
-    sortDir:  sortDir.value
-  })
-  for (const [k, v] of Object.entries(filters.value)) {
-    if (v) params.append(`filters[${k}]`, v)
-  }
-
-  const res  = await fetch(`${props.endpoint}?${params.toString()}`)
-  const data = await res.json()
-  items.value = Array.isArray(data.items) ? data.items : []
-  total.value = Number.isFinite(data.total) ? data.total : 0
+function sortableTitle(key: string) {
+  return query.sortBy === key ? `Sort: ${query.sortDir}` : 'Click to sort'
 }
 
-onMounted(() => {
 
-  columnsSafe.value.forEach(c => (filters.value[c.key] = ''))
-  fetchData(1)
-})
+function go(p: number) {
+  page.value = Math.min(Math.max(1, p), totalPages.value)
+  fetchData()
+}
 
 
-watch(() => props.endpoint, () => fetchData(1))
-watch(() => props.columns,  () => {
+function onReset() {
+  q.value = ''
+  for (const k of Object.keys(filters)) filters[k] = ''
+  query.sortBy = ''
+  query.sortDir = 'asc'
+  rows.value = []
+  total.value = 0
+  page.value = 1
+}
 
-  const newFilters = {}
-  columnsSafe.value.forEach(c => { newFilters[c.key] = filters.value[c.key] || '' })
-  filters.value = newFilters
-  fetchData(1)
-})
+
+async function fetchData() {
+  if (!hasSearch.value) {
+    rows.value = []
+    total.value = 0
+    return
+  }
+
+  loading.value = true
+  try {
+    const params = buildParams()
+    const { data } = await api.get(props.endpoint, { params })
+    rows.value = data?.items ?? []
+    total.value = data?.total ?? 0
+  } catch (e) {
+    console.error('[fetchData] error:', e)
+    rows.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+console.log('[InteractiveTable] apiBase:', debugApiBase())
 </script>
-
-<style scoped>
-.table-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
-.toolbar { display: flex; gap: 12px; margin-bottom: 8px; }
-.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 8px; margin: 8px 0 12px; }
-.filter-item { display: flex; flex-direction: column; gap: 4px; }
-.input { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; outline: none; }
-.table { width: 100%; border-collapse: collapse; }
-.th { user-select:none; cursor: pointer; text-align: left; border-bottom: 1px solid #e5e7eb; padding: 10px; }
-td { border-bottom: 1px solid #f3f4f6; padding: 10px; }
-.sort { margin-left: 6px; font-size: 12px; opacity: .7; }
-.empty { text-align:center; color:#6b7280; padding: 20px; }
-.pager { display:flex; gap: 12px; align-items:center; justify-content:flex-end; padding-top: 10px; }
-button { border:1px solid #d1d5db; background:#fff; padding:6px 10px; border-radius:8px; cursor:pointer; }
-button:disabled { opacity:.5; cursor:not-allowed; }
-</style>

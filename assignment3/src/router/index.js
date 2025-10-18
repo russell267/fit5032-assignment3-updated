@@ -68,6 +68,11 @@ const routes = [
     component: InteractiveTables
   },
   {
+  path: '/map',
+  name: 'Map',
+  component: () => import('@/views/MapView.vue')
+  },
+  {
     path: '/CountBookAPI',
     name: 'CountBookAPI',
     component: CountBookAPI,

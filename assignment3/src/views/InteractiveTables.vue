@@ -10,7 +10,7 @@
         :pageSize="10"
       >
         <template #extra>
-          <button @click="seedBooks">Search</button>
+          <button @click="seedBooks" class="border px-3 py-1 rounded">Seed Books</button>
         </template>
       </InteractiveTable>
     </section>
@@ -23,7 +23,7 @@
         :pageSize="10"
       >
         <template #extra>
-          <button @click="seedUsers">Search</button>
+          <button @click="seedUsers" class="border px-3 py-1 rounded">Seed Users</button>
         </template>
       </InteractiveTable>
     </section>
@@ -34,8 +34,27 @@
 import InteractiveTable from '../components/InteractiveTable.vue'
 
 
-const API_BASE = 'http://127.0.0.1:5001/week8-jiaquan/us-central1/api'
-const SEED_BASE = 'http://127.0.0.1:5001/week8-jiaquan/us-central1'
+const isHosting =
+  location.hostname.endsWith('web.app') ||
+  location.hostname.endsWith('firebaseapp.com') ||
+  ((location.hostname === '127.0.0.1' || location.hostname === 'localhost') &&
+    (location.port === '5005' || location.port === '5015' || location.port === '5025'))
+
+
+const DEFAULT_FN_BASE = 'http://127.0.0.1:5007/week8-jiaquan/us-central1'
+
+
+const ENV_BASE = (import.meta.env.VITE_FUNCTIONS_URL || '').replace(/\/$/, '')
+
+
+const BASE = isHosting ? '' : (ENV_BASE || DEFAULT_FN_BASE)
+
+
+const API_BASE = BASE + '/api'
+
+
+const SEED_BASE = BASE
+
 
 const bookCols = [
   { key: 'id', label: 'ID', searchable: false },
@@ -52,12 +71,15 @@ const userCols = [
   { key: 'role', label: 'Role' },
 ]
 
+
 async function seedBooks () {
   await fetch(`${SEED_BASE}/seedBooks`)
-  alert('Courses Successfully added!')
+  alert('Books seeded!')
 }
 async function seedUsers () {
   await fetch(`${SEED_BASE}/seedUsers`)
   alert('Users seeded!')
 }
+
+console.log('[Interactive] isHosting:', isHosting, 'BASE:', BASE, 'API_BASE:', API_BASE)
 </script>

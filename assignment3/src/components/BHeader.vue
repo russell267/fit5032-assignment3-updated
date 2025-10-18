@@ -36,8 +36,8 @@
           >
         </li>
         <li class="nav-item">
-          <router-link to="/WeatherCheck" class="nav-link" active-class="active"
-            >Get Weather</router-link
+          <router-link to="/map" class="nav-link" active-class="active"
+            >Get Map</router-link
           >
         </li>
         <li class="nav-item">
