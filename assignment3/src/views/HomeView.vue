@@ -2,6 +2,8 @@
   <div class="page">
 
 
+    <BHeader />
+
     <section class="hero">
       <h1>Men's Health Profile</h1>
       <p>Empowering wellness and awareness-track, learn, and grow together.</p>
@@ -9,8 +11,6 @@
     </section>
 
     <div class="container-lg">
-
-
       <div
         v-if="isAuthenticated"
         class="alert-card success"
@@ -28,7 +28,6 @@
         <router-link to="/FireLogin" class="alert-link"> log in</router-link>
         for full access.
       </div>
-
 
       <div class="card">
         <h2 class="card-title">
@@ -114,7 +113,6 @@
         </form>
       </div>
 
-
       <div class="card mt-5">
         <h2 class="card-title">
           <i class="bi bi-table me-2"></i> Registered Users
@@ -149,6 +147,9 @@ import { ref, onMounted } from 'vue'
 import { onAuthStateChanged, getAuth } from 'firebase/auth'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+
+
+import BHeader from '@/components/BHeader.vue'
 
 const formData = ref({
   username: '',
@@ -229,7 +230,6 @@ const clearForm = () => {
   padding-bottom: 60px;
 }
 
-
 .hero {
   background: linear-gradient(135deg, #0f172a, #1e3a8a);
   color: #fff;
@@ -256,7 +256,6 @@ const clearForm = () => {
   margin: 1rem auto 0;
 }
 
-
 .card {
   background: #fff;
   border-radius: 1.25rem;
@@ -271,7 +270,6 @@ const clearForm = () => {
   align-items: center;
   font-size: 1.1rem;
 }
-
 
 .grid {
   display: grid;
@@ -314,7 +312,6 @@ const clearForm = () => {
   margin-top: 4px;
 }
 
-
 .actions {
   margin-top: 1.5rem;
   display: flex;
@@ -337,7 +334,6 @@ const clearForm = () => {
 }
 .btn.primary:hover { transform: translateY(-1px); }
 .btn.ghost:hover { background: #f9fafb; }
-
 
 .alert-card {
   border-radius: 12px;
