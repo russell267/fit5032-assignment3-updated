@@ -1,89 +1,95 @@
 <template>
-  <div class="p-4 space-y-4">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">Find and Navigate</h1>
+  <div class="page">
 
-      <div class="flex items-center gap-2 text-sm text-gray-500">
-        <span v-if="from">
-          From:
-          <span class="font-mono">{{ from![0].toFixed(4) }}, {{ from![1].toFixed(4) }}</span>
+    <div class="hero">
+      <h1>Men s Health · Find & Navigate</h1>
+      <p>Search gyms, clinics, and parks. Plan a healthy route with one click.</p>
+    </div>
+
+
+    <div class="max-w-[1000px] mx-auto mb-4 flex items-center justify-between text-[13px] text-slate-600">
+      <div class="inline-flex items-center gap-2">
+        <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-sm">
+          <span class="text-slate-400">Start</span>
+          <span v-if="from" class="font-mono text-slate-800">{{ from![0].toFixed(4) }}, {{ from![1].toFixed(4) }}</span>
+          <span v-else class="italic text-slate-400">No start location</span>
         </span>
-        <span v-else class="italic">No start location</span>
 
         <button
           v-if="from"
-          class="ml-2 rounded border px-2 py-1 hover:bg-gray-50"
+          class="btn pill ghost"
           @click="recenter"
           title="Re-center map"
         >
           Re-center
         </button>
       </div>
-    </div>
-
-    <!-- Toolbar -->
-    <div
-      class="flex flex-wrap items-center gap-2 rounded-xl border bg-white/70 px-3 py-2 shadow-sm"
-    >
-      <div class="relative">
-        <input
-          v-model="keyword"
-          @keyup.enter="onSearch"
-          class="w-80 rounded-lg border px-3 py-2 pr-9 outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Search places (e.g., gym, clinic, park)"
-        />
-        <button
-          v-if="keyword"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          @click="clearSearch"
-          title="Clear"
-        >
-          ✕
-        </button>
-      </div>
-
-      <button
-        @click="onSearch"
-        class="rounded-lg border px-3 py-2 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="loading"
-      >
-        <span v-if="!loading">Search</span>
-        <span v-else>Searching...</span>
-      </button>
-
-      <div class="mx-2 h-6 w-px bg-gray-200"></div>
-
-      <button
-        @click="useMyLocation"
-        class="rounded-lg border px-3 py-2 hover:bg-gray-50"
-        title="Use my current location as start point"
-      >
-        Use my location
-      </button>
 
       <button
         v-if="results.length || summary || to"
         @click="resetAll"
-        class="ml-auto rounded-lg border px-3 py-2 text-gray-600 hover:bg-gray-50"
+        class="btn pill ghost"
         title="Clear results & route"
       >
         Reset
       </button>
     </div>
 
-    <!-- Main -->
-    <div class="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-      <!-- Map -->
-      <div id="map" class="h-[560px] w-full rounded-xl border shadow-sm"></div>
 
-      <!-- Side panel -->
-      <div class="space-y-4">
-        <!-- Results -->
-        <div class="rounded-xl border bg-white/70 shadow-sm">
-          <div class="flex items-center justify-between border-b px-3 py-2">
-            <h2 class="font-semibold">Results</h2>
-            <span class="text-xs text-gray-500" v-if="results.length">{{ results.length }}</span>
+    <div class="card max-w-[1000px] mx-auto mb-5">
+      <div class="toolbar">
+        <div class="relative w-full sm:w-96">
+          <input
+            v-model="keyword"
+            @keyup.enter="onSearch"
+            class="input w-full pr-10"
+            placeholder="Search places (e.g., gym, clinic, park)"
+          />
+          <button
+            v-if="keyword"
+            class="abs-clear"
+            @click="clearSearch"
+            title="Clear"
+          >
+            x
+          </button>
+        </div>
+
+        <button
+          @click="onSearch"
+          class="btn pill primary"
+          :disabled="loading"
+        >
+          <span v-if="!loading">Search</span>
+          <span v-else>Searching...</span>
+        </button>
+
+        <div class="spacer"></div>
+
+        <button
+          @click="useMyLocation"
+          class="btn pill"
+          title="Use my current location as start point"
+        >
+          Use my location
+        </button>
+      </div>
+    </div>
+
+
+    <div class="container">
+
+      <section class="card p-0 overflow-hidden">
+        <div id="map" class="map-frame"></div>
+      </section>
+
+
+      <aside class="side space-y-4">
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Results</h2>
+            <span class="chip" v-if="results.length">{{ results.length }}</span>
           </div>
 
           <div class="max-h-72 overflow-auto">
@@ -91,78 +97,69 @@
               <button
                 v-for="p in results"
                 :key="p.id"
-                class="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-gray-50"
-                :class="isSelected(p) ? 'bg-blue-50/60' : ''"
+                class="result-row"
+                :class="isSelected(p) ? 'row-active' : ''"
                 @click="selectPlace(p)"
               >
-                <div class="mt-1 h-2 w-2 rounded-full" :class="isSelected(p) ? 'bg-blue-500' : 'bg-gray-300'"></div>
+                <div class="dot" :class="isSelected(p) ? 'dot-active' : ''"></div>
                 <div class="min-w-0">
-                  <div class="truncate font-medium">{{ p.name }}</div>
-                  <div class="truncate text-sm text-gray-500">{{ p.full }}</div>
+                  <div class="truncate font-medium text-slate-800">{{ p.name }}</div>
+                  <div class="truncate text-[12px] text-slate-500">{{ p.full }}</div>
                 </div>
               </button>
             </template>
 
-            <div v-else class="px-3 py-8 text-center text-sm text-gray-500">
+            <div v-else class="empty">
               <div v-if="loading">Searching nearby places...</div>
-              <div v-else>Try searching for <span class="font-medium">gym</span>, <span class="font-medium">clinic</span>, or <span class="font-medium">park</span>.</div>
+              <div v-else>Try searching for <b>gym</b>, <b>clinic</b> or <b>park</b>.</div>
             </div>
           </div>
         </div>
 
-        <!-- Trip summary -->
-        <div v-if="summary" class="rounded-xl border bg-white/70 shadow-sm">
-          <div class="border-b px-3 py-2">
-            <h2 class="font-semibold">Trip</h2>
-          </div>
 
-          <div class="space-y-3 p-3">
+        <div v-if="summary" class="card">
+          <div class="card-head"><h2>Trip</h2></div>
+
+          <div class="space-y-3">
             <div class="grid grid-cols-2 gap-2 text-sm">
-              <div class="rounded-lg bg-gray-50 px-3 py-2">
-                <div class="text-gray-500">Distance</div>
-                <div class="font-semibold">{{ (summary.distance / 1000).toFixed(2) }} km</div>
+              <div class="stat">
+                <div class="stat-label">Distance</div>
+                <div class="stat-value">{{ (summary.distance / 1000).toFixed(2) }} km</div>
               </div>
-              <div class="rounded-lg bg-gray-50 px-3 py-2">
-                <div class="text-gray-500">Duration</div>
-                <div class="font-semibold">~{{ Math.round(summary.duration / 60) }} min</div>
+              <div class="stat">
+                <div class="stat-label">Duration</div>
+                <div class="stat-value">~{{ Math.round(summary.duration / 60) }} min</div>
               </div>
             </div>
 
-            <!-- Profile segmented control -->
-            <div class="flex overflow-hidden rounded-lg border text-sm">
+
+            <div class="seg">
               <button
                 v-for="m in ['walking','driving','cycling']"
                 :key="m"
-                class="flex-1 px-3 py-1.5"
-                :class="profile === m ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'"
+                class="seg-btn"
+                :class="profile === m ? 'seg-active' : ''"
                 @click="route(m as any)"
               >
                 {{ capitalize(m) }}
               </button>
             </div>
 
-            <button
-              @click="savePlace"
-              class="w-full rounded-lg border px-3 py-2 hover:bg-gray-50"
-            >
-              Save place
-            </button>
+            <button class="btn pill ghost w-full" @click="savePlace">Save place</button>
           </div>
         </div>
 
-        <!-- Steps -->
-        <div v-if="steps.length" class="rounded-xl border bg-white/70 shadow-sm">
-          <div class="border-b px-3 py-2">
-            <h2 class="font-semibold">Steps</h2>
-          </div>
-          <ol class="max-h-72 list-decimal space-y-1 overflow-auto px-6 py-3 text-sm">
+
+        <div v-if="steps.length" class="card">
+          <div class="card-head"><h2>Steps</h2></div>
+          <ol class="steps">
             <li v-for="(s, i) in steps" :key="i">
               {{ s.maneuver?.instruction || (s.maneuver?.type + ' ' + (s.name || '')) }}
               — {{ Math.round(s.distance) }} m
             </li>
           </ol>
         </div>
-      </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -248,7 +245,6 @@ function resetAll() {
   to.value = null
   if (toMarker) { toMarker.remove(); toMarker = null }
   if (map.getSource(ROUTE_SOURCE_ID)) {
-
     ;(map.getSource(ROUTE_SOURCE_ID) as any).setData({ type: 'FeatureCollection', features: [] })
   }
 }
@@ -317,7 +313,6 @@ async function route(m: 'walking' | 'driving' | 'cycling') {
 
     const geo = { type: 'Feature', geometry: data.geometry, properties: {} }
 
-
     if (map.getSource(ROUTE_SOURCE_ID)) {
       (map.getSource(ROUTE_SOURCE_ID) as any).setData(geo)
     } else {
@@ -357,5 +352,99 @@ async function savePlace() {
 </script>
 
 <style scoped>
-#map { min-height: 560px; }
+
+.page { min-height: 100vh; padding: 28px 16px 60px; background: #f8fafc; }
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+}
+
+
+.hero {
+  max-width: 1000px; margin: 0 auto 18px;
+  padding: 24px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #111827 100%);
+  color: #fff; text-align: center;
+  box-shadow: 0 12px 28px rgba(30,58,138,.25);
+}
+.hero h1 { font-size: 24px; font-weight: 700; margin: 0 0 6px; letter-spacing: .2px; }
+.hero p { margin: 0; opacity: .9; font-size: 14px; }
+
+
+.card {
+  background: #fff;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(2,6,23,.06);
+  padding: 14px;
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #eef2f7; padding: 6px 4px 8px; margin: -6px -4px 10px;
+}
+.card-head h2 { font-weight: 700; color: #1e3a8a; font-size: 15px; }
+.chip { font-size: 12px; color: #334155; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 2px 8px; border-radius: 9999px; }
+
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.input {
+  border: 1px solid #e5e7eb; border-radius: 9999px; padding: 8px 12px;
+  outline: none; font-size: 14px; transition: .2s;
+}
+.input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.abs-clear {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  color: #94a3b8;
+}
+.spacer { flex: 1; }
+
+
+.btn {
+  border: 1px solid #e5e7eb; background: #fff;
+  padding: 7px 14px; border-radius: 9999px; font-size: 13px; cursor: pointer;
+  transition: all .18s ease;
+}
+.btn:hover { background: #f8fafc; transform: translateY(-1px); }
+.btn.primary { background: #1f3a8a; color: #fff; border-color: #1f3a8a; box-shadow: 0 6px 14px rgba(31,58,138,.18); }
+.btn.primary:hover { background: #2a50b1; }
+.btn.ghost { background: #fff; border-style: dashed; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+
+
+.result-row {
+  display: flex; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 10px;
+}
+.result-row:hover { background: #f8fafc; }
+.row-active { background: rgba(37,99,235,.08); }
+.dot { width: 6px; height: 6px; border-radius: 9999px; background: #cbd5e1; margin-top: 6px; }
+.dot-active { background: #2563eb; }
+.empty { padding: 28px 10px; text-align: center; color: #64748b; font-size: 13px; }
+
+
+.stat { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 10px; padding: 8px 10px; }
+.stat-label { color: #64748b; font-size: 12px; }
+.stat-value { font-weight: 700; color: #0f172a; }
+
+
+.seg { display: flex; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 10px; }
+.seg-btn { flex: 1; padding: 7px 10px; font-size: 13px; background: #fff; }
+.seg-btn:hover { background: #f8fafc; }
+.seg-active { background: #2563eb; color: #fff; }
+
+
+.steps { max-height: 280px; overflow: auto; padding: 8px 12px; font-size: 13px; list-style: decimal; }
+
+
+.map-frame { height: 560px; width: 100%; border-radius: 14px; border: 1px solid #eef2f7; }
+
+
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+  .side { order: 2; }
+}
 </style>

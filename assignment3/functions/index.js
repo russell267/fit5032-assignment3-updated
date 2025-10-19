@@ -152,6 +152,93 @@ exports.sendEmail = onRequest(
   }
 );
 
+exports.sendBulkEmail = onRequest(
+  { secrets: [SENDGRID_API_KEY, MAIL_FROM], region: 'us-central1' },
+  async (req, res) => {
+    return cors(req, res, async () => {
+      try {
+        if (req.method === 'OPTIONS') return res.status(204).send('');
+        if (req.method !== 'POST') {
+          return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        }
+
+        const body = req.body || {};
+        const { to, subject, text, html, search } = body;
+        if (!subject || (!text && !html)) {
+          return res.status(400).json({ ok: false, error: 'Missing fields: subject AND (text or html)' });
+        }
+
+        const FROM_EMAIL = MAIL_FROM.value();
+        if (!FROM_EMAIL) {
+          return res.status(500).json({ ok: false, error: 'MAIL_FROM secret is not set on server' });
+        }
+
+
+        let recipients = [];
+
+        if (to && (!Array.isArray(to) || to.length)) {
+          recipients = splitEmails(to);
+        } else if (search && typeof search === 'object') {
+
+          const snap = await admin.firestore().collection('users').get();
+          const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+
+          const params = {
+            ...search,
+            page: '1',
+            pageSize: String(Math.max(rows.length, 10000)),
+          };
+          const result = applyQuery(rows, params);
+          recipients = (result.items || [])
+            .map(u => u?.email)
+            .filter(Boolean);
+        } else {
+          return res.status(400).json({
+            ok: false,
+            error: 'Provide either "to" (array/string) or "search" (object) to build recipients',
+          });
+        }
+
+
+        recipients = [...new Set(recipients.map(String).map(s => s.trim()).filter(Boolean))];
+        if (!recipients.length) {
+          return res.status(400).json({ ok: false, error: 'No valid recipients' });
+        }
+
+
+        sgMail.setApiKey(SENDGRID_API_KEY.value());
+        const BATCH_SIZE = 200;
+        let sent = 0, batches = 0;
+
+        for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+          const batch = recipients.slice(i, i + BATCH_SIZE);
+          const msg = {
+            to: batch,
+            from: FROM_EMAIL,
+            subject,
+            ...(text ? { text } : {}),
+            ...(html ? { html } : {}),
+          };
+          await sgMail.sendMultiple(msg);
+          sent += batch.length;
+          batches += 1;
+        }
+
+        return res.status(200).json({ ok: true, totalRecipients: recipients.length, sent, batches });
+      } catch (err) {
+
+        const sgErrors = err?.response?.body?.errors;
+        const reason = sgErrors?.[0]?.message || err?.message || 'Send failed';
+        console.error('sendBulkEmail error:', JSON.stringify(err?.response?.body || err, null, 2));
+        return res.status(500).json({ ok: false, error: reason });
+      }
+    });
+  }
+);
+
+
+
 // ---- functions: generic /api for books & users with gated search ----
 exports.api = onRequest({ region: 'us-central1' }, async (req, res) => {
   return cors(req, res, async () => {
