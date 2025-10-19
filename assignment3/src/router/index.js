@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
+// ===== Views =====
 import HomeView from '../views/HomeView.vue'
 import AboutView from '../views/AboutView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -9,10 +11,12 @@ import AddBookView from '@/views/AddBookView.vue'
 import GetBookCountView from '@/views/GetBookCountView.vue'
 import WeatherView from '../views/WeatherView.vue'
 import CountBookAPI from '../views/CountBookAPI.vue'
-import SendEmailView from '@/views/SendEmailView.vue';
+import SendEmailView from '@/views/SendEmailView.vue'
 import InteractiveTables from '../views/InteractiveTables.vue'
+import InteractiveChartsView from '@/views/InteractiveChartsView.vue'
 
 const routes = [
+  // === Core Pages ===
   {
     path: '/',
     name: 'Home',
@@ -29,63 +33,79 @@ const routes = [
     name: 'Login',
     component: LoginView,
   },
+
+  // === Firebase Auth ===
   {
-    path: '/FireLogin',
+    path: '/firelogin',
     name: 'FireLogin',
     component: FirebaseSigninView,
   },
   {
-    path: '/FireRegister',
+    path: '/fireregister',
     name: 'FireRegister',
     component: FirebaseRegisterView,
   },
+
+  // === Book & API Pages ===
   {
     path: '/addbook',
-    name: 'addbook',
+    name: 'AddBook',
     component: AddBookView,
   },
+  {
+    path: '/getbookcount',
+    name: 'GetBookCount',
+    component: GetBookCountView,
+  },
+  {
+    path: '/countbookapi',
+    name: 'CountBookAPI',
+    component: CountBookAPI,
+  },
+
+  // === Utility Features ===
+  {
+    path: '/email',
+    name: 'SendEmail',
+    component: SendEmailView,
+  },
+  {
+    path: '/weather',
+    name: 'WeatherCheck',
+    component: WeatherView,
+  },
+  {
+    path: '/interactive',
+    name: 'InteractiveTables',
+    component: InteractiveTables,
+  },
+  {
+    path: '/interactivecharts',
+    name: 'InteractiveCharts',
+    component: InteractiveChartsView,
+  },
+  {
+    path: '/map',
+    name: 'Map',
+    component: () => import('@/views/MapView.vue'),
+  },
+
+
   {
     path: '/access-denied',
     name: 'AccessDenied',
     component: AccessDeniedView,
   },
-  {
-    path: '/GetBookCount',
-    name: 'GetBookCount',
-    component: GetBookCountView,
-  },
-  { path: '/email',
-    name: 'SendEmail',
-    component: SendEmailView
-  },
-  {
-    path: '/WeatherCheck',
-    name: 'WeatherCheck',
-    component: WeatherView,
-  },
-  { path: '/interactive',
-    name: 'Interactive',
-    component: InteractiveTables
-  },
-  {
-  path: '/map',
-  name: 'Map',
-  component: () => import('@/views/MapView.vue')
-  },
-  {
-    path: '/CountBookAPI',
-    name: 'CountBookAPI',
-    component: CountBookAPI,
-  },
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 
-// Navigation guard to check authentication
+// ===== Navigation Guard (keep simple) =====
 router.beforeEach((to, from, next) => {
+
   next()
 })
 

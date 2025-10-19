@@ -51,6 +51,11 @@
           >
         </li>
         <li class="nav-item">
+          <router-link to="/interactivecharts" class="nav-link" active-class="active"
+            >Data Visualise</router-link
+          >
+        </li>
+        <li class="nav-item">
           <router-link to="/CountBookAPI" class="nav-link" active-class="active"
             >Count Book API</router-link
           >
